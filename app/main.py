@@ -4,17 +4,13 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
 from fastapi.responses import StreamingResponse
 import redis.asyncio as aioredis
 from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
+
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-app.add_middleware(
-  CORSMiddleware,
-  allow_origins=["*"],  # lock this down in prod
-  allow_methods=["*"],
-  allow_headers=["*"],
-)
-app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
+
 
 load_dotenv()
 MASTER_PASSWORD = os.getenv("MASTER_PASSWORD")
@@ -22,6 +18,13 @@ REDIS_URL = os.getenv("REDIS_URL")
 FILE_TTL = int(os.getenv("FILE_TTL_SECONDS", "3600"))
 
 app = FastAPI(title="Ephemeral File Share")
+
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],  # lock this down in prod
+  allow_methods=["*"],
+  allow_headers=["*"],
+)
 redis = aioredis.from_url(REDIS_URL)
 
 # Simple header-based auth
@@ -46,3 +49,6 @@ async def download(file_id: str):
     # Delete immediately after first download
     await redis.delete(key)
     return StreamingResponse(iter([data]), media_type="application/octet-stream")
+
+
+app.mount("/", StaticFiles(directory="frontend", html=True), name="static")

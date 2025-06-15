@@ -6,7 +6,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="flex flex-col items-center p-4">
-  <h1 class="text-2xl font-bold mb-4">Ephemeral Share</h1>
+  <h1 class="text-2xl font-bold mb-4">Ephemeral Share2</h1>
   <input id="pass" type="password" placeholder="Password" class="border p-2 mb-2"/>
   <input id="file" type="file" class="mb-2"/>
   <button onclick="doUpload()" class="bg-blue-500 text-white px-4 py-2 rounded">Upload</button>
@@ -26,8 +26,31 @@
       });
       if (!res.ok) return alert("Upload failed");
       const { download_url } = await res.json();
-      const url = location.origin + download_url + '?pw=' + encodeURIComponent(pw);
-      document.getElementById('link').innerHTML = `<a href="${url}">Download Link</a>`;
+      // Show a button to download using JS so we can set the header
+      document.getElementById('link').innerHTML = `<button id="downloadBtn" class="underline text-blue-600">Download Link</button>`;
+      document.getElementById('downloadBtn').onclick = async function() {
+        const pw2 = document.getElementById('pass').value;
+        const resp = await fetch(download_url, {
+          method: 'GET',
+          headers: { 'X-Password': pw2 }
+        });
+        if (!resp.ok) return alert('Download failed');
+        const blob = await resp.blob();
+        // Try to get filename from content-disposition or fallback
+        let filename = 'downloaded_file';
+        const disp = resp.headers.get('content-disposition');
+        if (disp && disp.includes('filename=')) {
+          filename = disp.split('filename=')[1].replace(/"/g, '').trim();
+        }
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
     }
   </script>
 </body>
