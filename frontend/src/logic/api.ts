@@ -69,7 +69,7 @@ export const authenticate = async (pw: string) => {
   const res = await fetch(`${API_BASE}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pw }),
+    body: JSON.stringify({ password: pw }),
   });
   if (!res.ok) {
     throw new Error("Authentication failed: " + (await res.text()));
