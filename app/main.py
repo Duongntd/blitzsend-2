@@ -1,6 +1,6 @@
 import os
 import uuid
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header, Body
 from fastapi.responses import StreamingResponse
 import redis.asyncio as aioredis
 from dotenv import load_dotenv
@@ -50,5 +50,38 @@ async def download(file_id: str):
     await redis.delete(key)
     return StreamingResponse(iter([data]), media_type="application/octet-stream")
 
+@app.get("/list", dependencies=[Depends(check_auth)])
+async def list_files():
+    keys = await redis.keys("file:*")
+    # Extract file IDs from keys
+    file_ids = [k.decode().split(":", 1)[1] if isinstance(k, bytes) else k.split(":", 1)[1] for k in keys]
+    return {"files": file_ids}
+
+@app.post("/login")
+async def login(password: str = Body(..., embed=True)):
+    if password == MASTER_PASSWORD:
+        return {"success": True}
+    else:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+@app.post("/text", dependencies=[Depends(check_auth)])
+async def write_text(text: str = Body(..., embed=True)):
+    text_id = str(uuid.uuid4())
+    await redis.set(f"text:{text_id}", text, ex=FILE_TTL)
+    return {"text_id": text_id}
+
+@app.get("/text/{text_id}", dependencies=[Depends(check_auth)])
+async def get_text(text_id: str):
+    key = f"text:{text_id}"
+    data = await redis.get(key)
+    if not data:
+        raise HTTPException(status_code=404, detail="Text not found or expired")
+    return {"text": data.decode() if isinstance(data, bytes) else data}
+
+@app.get("/texts", dependencies=[Depends(check_auth)])
+async def list_texts():
+    keys = await redis.keys("text:*")
+    text_ids = [k.decode().split(":", 1)[1] if isinstance(k, bytes) else k.split(":", 1)[1] for k in keys]
+    return {"texts": text_ids}
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
